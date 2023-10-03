@@ -1,0 +1,77 @@
+# Use an official Node.js runtime as the base image
+FROM node:16
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
+
+# Install project dependencies
+RUN npm install
+
+# Copy the entire project directory into the container
+COPY . .
+
+# Build the React application for production
+RUN npm run build
+
+# Expose a port (e.g., 80) that your application will listen on
+EXPOSE 3000
+
+# Define the command to run your application
+CMD ["npm", "start"]
+
+# Use an official OpenJDK 17 runtime as a parent image
+FROM bellsoft/liberica-openjdk-alpine:17
+
+# Set the working directory to /app
+WORKDIR /app
+
+# Copy the JAR file into the container at /app
+COPY target/Jpademo-0.0.1-SNAPSHOT.jar /app/Jpademo-0.0.1-SNAPSHOT.jar
+
+# Make port 8080 available to the world outside this container
+EXPOSE 8080
+
+# Run the JAR file when the container starts
+CMD ["java", "-jar", "Jpademo-0.0.1-SNAPSHOT.jar"]
+
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb-container
+    ports:
+      - "27017:27017"
+    networks:
+      - my-network
+
+  reactapp:
+    build:
+      context: ./tse_frontend
+      dockerfile: Dockerfile
+    container_name: tse_frontend
+    image: tse_frontend:reactapp
+    ports:
+      - "3000:3000"
+
+  springbootapp:
+    build:
+      context: ./tse_backend
+      dockerfile: Dockerfile
+    container_name: tse_backend
+    image: tse_backend:springbootapp
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb-container:27017/database
+    depends_on:
+      - mongodb
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    driver: bridge
